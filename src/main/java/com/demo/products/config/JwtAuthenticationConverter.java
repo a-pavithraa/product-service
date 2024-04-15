@@ -18,13 +18,19 @@ class JwtAuthenticationConverter implements Converter<Jwt, AbstractAuthenticatio
 
     @Override
     public AbstractAuthenticationToken convert(Jwt jwt) {
-        List<GrantedAuthority> authorityList = extractRoles(jwt);
-        Collection<GrantedAuthority> authorities = delegate.convert(jwt);
-        if (authorities != null) {
-            authorityList.addAll(authorities);
-        }
 
-        return new JwtAuthenticationToken(jwt, authorityList);
+        Map<String,Object> realm_access = (Map<String, Object>) jwt.getClaims().get("realm_access");
+        if(realm_access == null || realm_access.isEmpty()) {
+            return new JwtAuthenticationToken(jwt, List.of());
+
+        }
+        List<String> roles = (List<String>) realm_access.get("roles");
+        if (roles == null || roles.isEmpty()) {
+            roles = List.of("ROLE_USER");
+        }
+        List<GrantedAuthority> authorities= roles.stream()
+                .map(SimpleGrantedAuthority::new).collect(Collectors.toList());
+        return new JwtAuthenticationToken(jwt, authorities);
     }
 
     private List<GrantedAuthority> extractRoles(Jwt jwt) {
@@ -37,7 +43,6 @@ class JwtAuthenticationConverter implements Converter<Jwt, AbstractAuthenticatio
             roles = List.of("ROLE_USER");
         }
         List<GrantedAuthority> authorities= roles.stream()
-
                         .map(SimpleGrantedAuthority::new).collect(Collectors.toList());
 
         return authorities;
